@@ -19,6 +19,8 @@ module Rake
     attr_accessor :config_script
     attr_accessor :tmp_dir
     attr_accessor :ext_dir
+    attr_accessor :java_ext_dir
+    attr_accessor :java_classpath
     attr_accessor :lib_dir
     attr_accessor :platform
     attr_accessor :config_options
@@ -26,6 +28,7 @@ module Rake
     attr_accessor :cross_compile
     attr_accessor :cross_platform
     attr_accessor :cross_config_options
+    attr_accessor :no_native
 
     def initialize(name = nil, gem_spec = nil)
       init(name, gem_spec)
@@ -39,12 +42,15 @@ module Rake
       @config_script = 'extconf.rb'
       @tmp_dir = 'tmp'
       @ext_dir = "ext/#{@name}"
+      @java_ext_dir = 'ext-java/src/main/java'
       @lib_dir = 'lib'
+      @java_classpath = nil
       @source_pattern = "*.c"
       @config_options = []
       @cross_compile = false
       @cross_config_options = []
       @cross_compiling = nil
+      @no_native = false
     end
 
     def platform
@@ -65,7 +71,7 @@ module Rake
       define_compile_tasks
 
       # only gems with 'ruby' platforms are allowed to define native tasks
-      define_native_tasks if @gem_spec && @gem_spec.platform == 'ruby'
+      define_native_tasks if (@gem_spec && @gem_spec.platform == 'ruby') || !no_native
 
       # only define cross platform functionality when enabled
       return unless @cross_compile
@@ -103,48 +109,80 @@ module Rake
         cp "#{tmp_path}/#{binary(platf)}", "#{lib_path}/#{binary(platf)}"
       end
 
-      # binary in temporary folder depends on makefile and source files
-      # tmp/extension_name/extension_name.{so,bundle}
-      file "#{tmp_path}/#{binary(platf)}" => ["#{tmp_path}/Makefile"] + source_files do
-        chdir tmp_path do
-          sh make
-        end
-      end
+      if platf == 'java'
 
-      # makefile depends of tmp_dir and config_script
-      # tmp/extension_name/Makefile
-      file "#{tmp_path}/Makefile" => [tmp_path, extconf] do |t|
-        options = @config_options.dup
+        not_jruby_compile_msg = <<-EOF
+WARNING: You're cross-compiling a binary extension for JRuby, but are using
+another interpreter. If your Java classpath or extension dir settings are not
+correctly detected, then either check the appropriate environment variables or
+execute the Rake compilation task using the JRuby interpreter.
+(e.g. `jruby -S rake compile:java`)
+        EOF
+        warn(not_jruby_compile_msg) unless defined?(JRUBY_VERSION)
 
-        # include current directory
-        cmd = ['-I.']
+        file "#{tmp_path}/#{binary(platf)}" => [tmp_path] + java_source_files do
+          #chdir tmp_path do
+            classpath_arg = java_classpath_arg(@java_classpath)
 
-        # if fake.rb is present, add to the command line
-        if t.prerequisites.include?("#{tmp_path}/fake.rb") then
-          cmd << '-rfake'
-        end
+            # Check if CC_JAVA_DEBUG env var was set to TRUE
+            # TRUE means compile java classes with debug info
+            debug_arg = if ENV['CC_JAVA_DEBUG'] && ENV['CC_JAVA_DEBUG'].upcase.eql?("TRUE")
+              '-g'
+            else
+              ''
+            end
 
-        # build a relative path to extconf script
-        abs_tmp_path = Pathname.new(Dir.pwd) + tmp_path
-        abs_extconf = Pathname.new(Dir.pwd) + extconf
-
-        # now add the extconf script
-        cmd << abs_extconf.relative_path_from(abs_tmp_path)
-
-        # rbconfig.rb will be present if we are cross compiling
-        if t.prerequisites.include?("#{tmp_path}/rbconfig.rb") then
-          options.push(*@cross_config_options)
+            sh "javac #{java_extdirs_arg} -target 1.5 -source 1.5 -Xlint:unchecked #{debug_arg} #{classpath_arg} -d #{tmp_path} #{java_source_files.join(' ')}"
+            sh "jar cf #{tmp_path}/#{binary(platf)} -C #{tmp_path} ."
+          #end
         end
 
-        # add options to command
-        cmd.push(*options)
+      else
 
-        chdir tmp_path do
-          # FIXME: Rake is broken for multiple arguments system() calls.
-          # Add current directory to the search path of Ruby
-          # Also, include additional parameters supplied.
-          ruby cmd.join(' ')
+        # binary in temporary folder depends on makefile and source files
+        # tmp/extension_name/extension_name.{so,bundle}
+        file "#{tmp_path}/#{binary(platf)}" => ["#{tmp_path}/Makefile"] + source_files do
+          chdir tmp_path do
+            sh make
+          end
         end
+
+        # makefile depends of tmp_dir and config_script
+        # tmp/extension_name/Makefile
+        file "#{tmp_path}/Makefile" => [tmp_path, extconf] do |t|
+          options = @config_options.dup
+
+          # include current directory
+          cmd = ['-I.']
+
+          # if fake.rb is present, add to the command line
+          if t.prerequisites.include?("#{tmp_path}/fake.rb") then
+            cmd << '-rfake'
+          end
+
+          # build a relative path to extconf script
+          abs_tmp_path = Pathname.new(Dir.pwd) + tmp_path
+          abs_extconf = Pathname.new(Dir.pwd) + extconf
+
+          # now add the extconf script
+          cmd << abs_extconf.relative_path_from(abs_tmp_path)
+
+          # rbconfig.rb will be present if we are cross compiling
+          if t.prerequisites.include?("#{tmp_path}/rbconfig.rb") then
+            options.push(*@cross_config_options)
+          end
+
+          # add options to command
+          cmd.push(*options)
+
+          chdir tmp_path do
+            # FIXME: Rake is broken for multiple arguments system() calls.
+            # Add current directory to the search path of Ruby
+            # Also, include additional parameters supplied.
+            ruby cmd.join(' ')
+          end
+        end
+
       end
 
       # compile tasks
@@ -240,28 +278,72 @@ module Rake
     end
 
     def define_cross_platform_tasks(for_platform)
-      if ruby_vers = ENV['RUBY_CC_VERSION']
-        ruby_vers = ENV['RUBY_CC_VERSION'].split(File::PATH_SEPARATOR)
+      if for_platform == 'java'
+        define_java_platform_tasks(for_platform)
       else
-        ruby_vers = [RUBY_VERSION]
-      end
-
-      multi = (ruby_vers.size > 1) ? true : false
-
-      ruby_vers.each do |version|
-        # save original lib_dir
-        orig_lib_dir = @lib_dir
-
-        # tweak lib directory only when targeting multiple versions
-        if multi then
-          version =~ /(\d+.\d+)/
-          @lib_dir = "#{@lib_dir}/#{$1}"
+        if ruby_vers = ENV['RUBY_CC_VERSION']
+          ruby_vers = ENV['RUBY_CC_VERSION'].split(File::PATH_SEPARATOR)
+        else
+          ruby_vers = [RUBY_VERSION]
         end
 
-        define_cross_platform_tasks_with_version(for_platform, version)
+        multi = (ruby_vers.size > 1) ? true : false
 
-        # restore lib_dir
-        @lib_dir = orig_lib_dir
+        ruby_vers.each do |version|
+          # save original lib_dir
+          orig_lib_dir = @lib_dir
+
+          # tweak lib directory only when targeting multiple versions
+          if multi then
+            version =~ /(\d+.\d+)/
+            @lib_dir = "#{@lib_dir}/#{$1}"
+          end
+
+          define_cross_platform_tasks_with_version(for_platform, version)
+
+          # restore lib_dir
+          @lib_dir = orig_lib_dir
+        end
+      end
+    end
+
+    def define_java_platform_tasks(for_platform)
+
+      # HACK (we don't need/use this currently)
+      ruby_ver = RUBY_VERSION
+
+      # tmp_path
+      tmp_path = "#{@tmp_dir}/#{for_platform}/#{@name}/#{ruby_ver}"
+
+      # lib_path
+      lib_path = lib_dir
+
+      define_compile_tasks(for_platform)
+
+      # create java task
+      task 'java' do
+        # clear compile dependencies
+        Rake::Task['compile'].prerequisites.reject! { |t| !compiles_cross_platform.include?(t) }
+
+        # chain the cross platform ones
+        task 'compile' => ["compile:#{for_platform}"]
+
+        # clear lib/binary dependencies and trigger cross platform ones
+        # check if lib/binary is defined (damn bundle versus so versus dll)
+        if Rake::Task.task_defined?("#{lib_path}/#{binary(for_platform)}") then
+          Rake::Task["#{lib_path}/#{binary(for_platform)}"].prerequisites.clear
+        end
+
+        # FIXME: targeting multiple platforms copies the file twice
+        file "#{lib_path}/#{binary(for_platform)}" => ["copy:#{@name}:#{for_platform}:#{ruby_ver}"]
+
+        # if everything for native task is in place
+        if @gem_spec && @gem_spec.platform == 'ruby' then
+          # double check: only cross platform native tasks should be here
+          # FIXME: Sooo brittle
+          Rake::Task['native'].prerequisites.reject! { |t| !natives_cross_platform.include?(t) }
+          task 'native' => ["native:#{for_platform}"]
+        end
       end
     end
 
@@ -370,6 +452,8 @@ module Rake
           'bundle'
         when /mingw|mswin|linux/
           'so'
+        when /java/
+          'jar'
         else
           RbConfig::CONFIG['DLEXT']
       end
@@ -398,5 +482,46 @@ module Rake
         end
 FAKE_RB
     end
+
+    def java_source_files
+      @java_source_files ||= FileList["#{@java_ext_dir}/**/*.java"]
+    end
+
+    #
+    # Discover Java Extension Directories and build an extdirs argument
+    #
+    def java_extdirs_arg
+      extdirs = Java::java.lang.System.getProperty('java.ext.dirs') rescue nil
+      extdirs = ENV['JAVA_EXT_DIR'] unless extdirs
+      java_extdir = extdirs.nil? ? "" : "-extdirs \"#{extdirs}\""
+    end
+
+    #
+    # Discover the Java/JRuby classpath and build a classpath argument
+    #
+    # @params
+    #   *args:: Additional classpath arguments to append
+    #
+    # Copied verbatim from the ActiveRecord-JDBC project. There are a small myriad
+    # of ways to discover the Java classpath correctly.
+    #
+    def java_classpath_arg(*args)
+      if RUBY_PLATFORM =~ /java/
+        begin
+          cpath  = Java::java.lang.System.getProperty('java.class.path').split(File::PATH_SEPARATOR)
+          cpath += Java::java.lang.System.getProperty('sun.boot.class.path').split(File::PATH_SEPARATOR)
+          jruby_cpath = cpath.compact.join(File::PATH_SEPARATOR)
+        rescue => e
+        end
+      end
+      unless jruby_cpath
+        jruby_cpath = ENV['JRUBY_PARENT_CLASSPATH'] || ENV['JRUBY_HOME'] &&
+          FileList["#{ENV['JRUBY_HOME']}/lib/*.jar"].join(File::PATH_SEPARATOR)
+      end
+      raise "JRUBY_HOME or JRUBY_PARENT_CLASSPATH are not set" unless jruby_cpath
+      jruby_cpath += File::PATH_SEPARATOR + args.join(File::PATH_SEPARATOR) unless args.empty?
+      jruby_cpath ? "-cp \"#{jruby_cpath}\"" : ""
+    end
+
   end
 end
