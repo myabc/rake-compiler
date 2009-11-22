@@ -71,7 +71,7 @@ module Rake
       define_compile_tasks
 
       # only gems with 'ruby' platforms are allowed to define native tasks
-      define_native_tasks if (@gem_spec && @gem_spec.platform == 'ruby') || !no_native
+      define_native_tasks if !@no_native && (@gem_spec && @gem_spec.platform == 'ruby')
 
       # only define cross platform functionality when enabled
       return unless @cross_compile
