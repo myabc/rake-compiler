@@ -5,6 +5,8 @@ module PlatformExtensionHelpers
         'bundle'
       when /mingw|mswin|linux/
         'so'
+      when /java/
+        'jar'
       else
         RbConfig::CONFIG['DLEXT']
     end
