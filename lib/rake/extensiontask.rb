@@ -5,8 +5,6 @@ require File.expand_path(File.dirname(__FILE__) + '/baseextensiontask')
 # gem developer/creators.
 
 module Rake
-  autoload :GemPackageTask, 'rake/gempackagetask'
-
   class ExtensionTask < BaseExtensionTask
 
     attr_accessor :config_script

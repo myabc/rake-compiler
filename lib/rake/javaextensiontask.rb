@@ -5,7 +5,6 @@ require File.expand_path(File.dirname(__FILE__) + '/baseextensiontask')
 # gem developer/creators.
 
 module Rake
-
   class JavaExtensionTask < BaseExtensionTask
 
     attr_accessor :classpath
