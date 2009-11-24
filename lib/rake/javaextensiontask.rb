@@ -112,9 +112,14 @@ execute the Rake compilation task using the JRuby interpreter.
     end
 
     def define_java_platform_tasks
+      # lib_path
+      lib_path = lib_dir
+
+      # ruby version (don't actually need this)
+      ruby_ver = RUBY_VERSION
 
       if @gem_spec && !Rake::Task.task_defined?("java:#{@gem_spec.name}")
-        task "java:#{@gem_spec.name}" => 'compile:java' do |t|
+        task "java:#{@gem_spec.name}" do |t|
 
           # FIXME: truly duplicate the Gem::Specification
           spec = gem_spec.dup
@@ -129,9 +134,9 @@ execute the Rake compilation task using the JRuby interpreter.
           ext_files = []
 
           # go through native prerequisites and grab the real extension files from there
-          # t.prerequisites.each do |ext|
-          #  ext_files << ext
-          # end
+          t.prerequisites.each do |ext|
+            ext_files << ext
+          end
 
           # include the files in the gem specification
           spec.files += ext_files
@@ -146,6 +151,14 @@ execute the Rake compilation task using the JRuby interpreter.
             pkg.need_zip = false
             pkg.need_tar = false
           end
+        end
+
+        # add binaries to the dependency chain
+        task "java:#{@gem_spec.name}" => ["#{lib_path}/#{binary(platform)}"]
+
+        # ensure the extension get copied
+        unless Rake::Task.task_defined?("#{lib_path}/#{binary(platform)}") then
+          file "#{lib_path}/#{binary(platform)}" => ["copy:#{name}:#{platform}:#{ruby_ver}"]
         end
 
         task 'java' => ["java:#{@gem_spec.name}"]
