@@ -4,6 +4,7 @@ Feature: JCompile Java extensions
   As a Ruby developer
   I want some rake tasks that take away the pain of compilation
 
+  @java
   Scenario: compile single extension
     Given that all my Java source files are in place
     And I've installed the Java Development Kit

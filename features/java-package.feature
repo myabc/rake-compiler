@@ -4,6 +4,7 @@ Feature: Generate JRuby gems from JRuby or MRI
   As a Gem developer who used to do J2EE development
   I want more rake magic that turns monotony into joy.
 
+  @java
   Scenario: package a gem for Java
     Given that my JRuby gem source is all in place
     And I've installed the Java Development Kit
