@@ -21,7 +21,7 @@ module Rake
     def init(name = nil, gem_spec = nil)
       super
       @ext_dir = "ext-java/src/main/java"
-      @source_pattern = "*.java"
+      @source_pattern = "**/*.java"
       @classpath = nil
       @java_compiling = nil
     end
@@ -69,7 +69,7 @@ execute the Rake compilation task using the JRuby interpreter.
 
       file "#{tmp_path}/#{binary(platf)}" => [tmp_path] + source_files do
         #chdir tmp_path do
-          classpath_arg = java_classpath_arg(@java_classpath)
+          classpath_arg = java_classpath_arg(@classpath)
 
           # Check if CC_JAVA_DEBUG env var was set to TRUE
           # TRUE means compile java classes with debug info
