@@ -8,7 +8,7 @@ require 'pathname'
 module Rake
   autoload :GemPackageTask, 'rake/gempackagetask'
 
-  class BaseExtensionTask
+  class BaseExtensionTask < TaskLib
 
     attr_accessor :name
     attr_accessor :gem_spec
