@@ -33,6 +33,15 @@ module Rake
     end
 
     def define
+      if RUBY_PLATFORM == 'java' || (defined?(RUBY_ENGINE) && RUBY_ENGINE == 'ironruby')
+        warn <<-EOF
+WARNING: You're attempting to (cross-)compile C extensions from a platform
+(#{RUBY_ENGINE}) that does not support native extensions or mkmf.rb.
+Rerun `rake` under MRI Ruby 1.8.x/1.9.x to cross/native compile.
+        EOF
+        return
+      end
+
       super
 
       # only gems with 'ruby' platforms are allowed to define native tasks
