@@ -41,7 +41,7 @@ module Rake
       lib_path = lib_dir
 
       # tmp_path
-      tmp_path = "#{@tmp_dir}/#{platf}/#{@name}/#{ruby_ver}"
+      tmp_path = "#{@tmp_dir}/#{platf}/#{@name}"
 
       # cleanup and clobbering
       CLEAN.include(tmp_path)
@@ -54,7 +54,7 @@ module Rake
 
       # copy binary from temporary location to final lib
       # tmp/extension_name/extension_name.{so,bundle} => lib/
-      task "copy:#{@name}:#{platf}:#{ruby_ver}" => [lib_path, "#{tmp_path}/#{binary(platf)}"] do
+      task "copy:#{@name}:#{platf}" => [lib_path, "#{tmp_path}/#{binary(platf)}"] do
         cp "#{tmp_path}/#{binary(platf)}", "#{lib_path}/#{binary(platf)}"
       end
 
@@ -97,14 +97,14 @@ execute the Rake compilation task using the JRuby interpreter.
       end
 
       # Allow segmented compilation by platform (open door for 'cross compile')
-      task "compile:#{@name}:#{platf}" => ["copy:#{@name}:#{platf}:#{ruby_ver}"]
+      task "compile:#{@name}:#{platf}" => ["copy:#{@name}:#{platf}"]
       task "compile:#{platf}" => ["compile:#{@name}:#{platf}"]
 
       # Only add this extension to the compile chain if current
       # platform matches the indicated one.
       if platf == RUBY_PLATFORM then
         # ensure file is always copied
-        file "#{lib_path}/#{binary(platf)}" => ["copy:#{name}:#{platf}:#{ruby_ver}"]
+        file "#{lib_path}/#{binary(platf)}" => ["copy:#{name}:#{platf}"]
 
         task "compile:#{@name}" => ["compile:#{@name}:#{platf}"]
         task "compile" => ["compile:#{platf}"]
@@ -114,9 +114,6 @@ execute the Rake compilation task using the JRuby interpreter.
     def define_java_platform_tasks
       # lib_path
       lib_path = lib_dir
-
-      # ruby version (don't actually need this)
-      ruby_ver = RUBY_VERSION
 
       if @gem_spec && !Rake::Task.task_defined?("java:#{@gem_spec.name}")
         task "java:#{@gem_spec.name}" do |t|
@@ -158,7 +155,7 @@ execute the Rake compilation task using the JRuby interpreter.
 
         # ensure the extension get copied
         unless Rake::Task.task_defined?("#{lib_path}/#{binary(platform)}") then
-          file "#{lib_path}/#{binary(platform)}" => ["copy:#{name}:#{platform}:#{ruby_ver}"]
+          file "#{lib_path}/#{binary(platform)}" => ["copy:#{name}:#{platform}"]
         end
 
         task 'java' => ["java:#{@gem_spec.name}"]
