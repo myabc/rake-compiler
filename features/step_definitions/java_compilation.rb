@@ -1,11 +1,7 @@
 Given %r{^I've installed the Java Development Kit$} do
-  compilers = %w(javac javac.exe)
-  paths = ENV['PATH'].split(File::PATH_SEPARATOR)
-  compiler = compilers.find do |comp|
-    paths.find do |path|
-      javac = File.join(path, comp)
-      File.exist?(javac) && File.executable?(javac)
-    end
-  end
-  pending "Cannot locate suitable compiler in the PATH." unless compiler
+  pending('Cannot locate suitable Java compiler (the Java Development Kit) in the PATH.') unless search_path(%w(javac javac.exe))
+end
+
+Given %r{^I've installed JRuby$} do
+  pending('Cannot locate a JRuby installation in the PATH.') unless search_path(%w(jruby jruby.exe jruby.bat))
 end
