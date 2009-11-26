@@ -1,5 +1,13 @@
 #!/usr/bin/env ruby
 require File.expand_path(File.dirname(__FILE__) + '/baseextensiontask')
+load_javac_shim = true
+begin
+  require 'pangolin'
+  load_javac_shim = false
+rescue LoadError
+end if defined?(JRUBY_VERSION)
+require File.expand_path(File.dirname(__FILE__) + '/javaextensioncompiler') if load_javac_shim
+
 
 # Define a series of tasks to aid in the compilation of Java extensions for
 # gem developer/creators.
@@ -8,7 +16,11 @@ module Rake
   class JavaExtensionTask < BaseExtensionTask
 
     attr_accessor :classpath
-    #attr_accessor :java_config_options
+    attr_accessor :deprecation_warnings
+    attr_accessor :warnings
+    attr_accessor :encoding
+    attr_accessor :verbose
+    attr_accessor :lint
 
     def platform
       @platform ||= 'java'
@@ -20,9 +32,14 @@ module Rake
 
     def init(name = nil, gem_spec = nil)
       super
-      @source_pattern = "**/*.java"
-      @classpath = nil
-      @java_compiling = nil
+      @source_pattern       = '**/*.java'
+      @classpath            = nil
+      @java_compiling       = nil
+      @deprecation_warnings = true
+      @warnings             = true
+      @encoding             = nil
+      @verbose              = false
+      @lint                 = []
     end
 
     def define
@@ -72,14 +89,15 @@ execute the Rake compilation task using the JRuby interpreter.
 
           # Check if CC_JAVA_DEBUG env var was set to TRUE
           # TRUE means compile java classes with debug info
-          debug_arg = if ENV['CC_JAVA_DEBUG'] && ENV['CC_JAVA_DEBUG'].upcase.eql?("TRUE")
-            '-g'
-          else
-            ''
-          end
+          # debug_arg = if ENV['CC_JAVA_DEBUG'] && ENV['CC_JAVA_DEBUG'].upcase.eql?("TRUE")
+          #   '-g'
+          # else
+          #  ''
+          # end
 
-          sh "javac #{java_extdirs_arg} -target 1.5 -source 1.5 -Xlint:unchecked #{debug_arg} #{classpath_arg} -d #{tmp_path} #{source_files.join(' ')}"
-          sh "jar cf #{tmp_path}/#{binary(platf)} -C #{tmp_path} ."
+          javac(source_files, :destination => tmp_path, :class_path => classpath_arg, :verbose => true)
+          jar("#{tmp_path}/#{binary(platf)}", FileList['#{tmp_path}/**/*.class'], :base_dir => tmp_path, :verbose => true)
+
         #end
       end
 
