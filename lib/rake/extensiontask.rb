@@ -16,7 +16,6 @@ module Rake
     def init(name = nil, gem_spec = nil)
       super
       @config_script = 'extconf.rb'
-      @ext_dir = "ext/#{@name}"
       @source_pattern = "*.c"
       @cross_compile = false
       @cross_config_options = []

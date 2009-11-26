@@ -33,6 +33,7 @@ module Rake
       @name = name
       @gem_spec = gem_spec
       @tmp_dir = 'tmp'
+      @ext_dir = "ext/#{@name}"
       @lib_dir = 'lib'
       @config_options = []
     end

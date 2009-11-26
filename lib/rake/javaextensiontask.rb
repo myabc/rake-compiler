@@ -20,7 +20,6 @@ module Rake
 
     def init(name = nil, gem_spec = nil)
       super
-      @ext_dir = "ext-java/src/main/java"
       @source_pattern = "**/*.java"
       @classpath = nil
       @java_compiling = nil

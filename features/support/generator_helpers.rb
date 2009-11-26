@@ -62,7 +62,7 @@ module GeneratorHelpers
 
   def generate_java_compile_extension_task_for(extension_name)
     # create folder structure
-    FileUtils.mkdir_p "ext-java/src/main/java"
+    FileUtils.mkdir_p "ext/#{extension_name}"
 
     return if File.exist?("tasks/#{extension_name}.rake")
 
@@ -113,7 +113,7 @@ module GeneratorHelpers
 
   def generate_java_source_code_for(extension_name)
     # source .java file
-    File.open("ext-java/src/main/java/#{camelize(extension_name)}Service.java", 'w') do |c|
+    File.open("ext/#{extension_name}/#{camelize(extension_name)}Service.java", 'w') do |c|
       c.puts template_source_java(extension_name)
     end
   end
