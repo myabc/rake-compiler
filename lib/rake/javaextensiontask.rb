@@ -83,22 +83,25 @@ execute the Rake compilation task using the JRuby interpreter.
       EOF
       warn(not_jruby_compile_msg) unless defined?(JRUBY_VERSION)
 
-      file "#{tmp_path}/#{binary(platf)}" => [tmp_path] + source_files do
-        #chdir tmp_path do
-          classpath_arg = java_classpath_arg(@classpath)
+      file "#{tmp_path}/#{binary(platf)}" => "#{tmp_path}/.build" do
+        jar("#{tmp_path}/#{binary(platf)}", FileList["#{tmp_path}/**/*.class"], :base_dir => tmp_path, :verbose => true)
+      end
 
-          # Check if CC_JAVA_DEBUG env var was set to TRUE
-          # TRUE means compile java classes with debug info
-          # debug_arg = if ENV['CC_JAVA_DEBUG'] && ENV['CC_JAVA_DEBUG'].upcase.eql?("TRUE")
-          #   '-g'
-          # else
-          #  ''
-          # end
+      file "#{tmp_path}/.build" => [tmp_path] + source_files do
+        classpath_arg = java_classpath_arg(@classpath)
 
-          javac(source_files, :destination => tmp_path, :class_path => classpath_arg, :verbose => true)
-          jar("#{tmp_path}/#{binary(platf)}", FileList['#{tmp_path}/**/*.class'], :base_dir => tmp_path, :verbose => true)
+        # Check if CC_JAVA_DEBUG env var was set to TRUE
+        # TRUE means compile java classes with debug info
+        # debug_arg = if ENV['CC_JAVA_DEBUG'] && ENV['CC_JAVA_DEBUG'].upcase.eql?("TRUE")
+        #   '-g'
+        # else
+        #  ''
+        # end
 
-        #end
+        javac(source_files, :destination => tmp_path, :class_path => classpath_arg, :verbose => true)
+
+        # Checkpoint file
+        touch "#{tmp_path}/.build"
       end
 
       # compile tasks
