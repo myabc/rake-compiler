@@ -1,6 +1,8 @@
 .DS_Store
 .*.sw[pon]
+_Yardoc
+.yardoc
 coverage
-doc/api
+doc
 tmp
 pkg
