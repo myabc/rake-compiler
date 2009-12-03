@@ -1,13 +1,6 @@
 #!/usr/bin/env ruby
+require 'pangolin'
 require File.expand_path(File.dirname(__FILE__) + '/baseextensiontask')
-load_javac_shim = true
-begin
-  require 'pangolin'
-  load_javac_shim = false
-rescue LoadError
-end if defined?(JRUBY_VERSION)
-require File.expand_path(File.dirname(__FILE__) + '/javaextensioncompiler') if load_javac_shim
-
 
 # Define a series of tasks to aid in the compilation of Java extensions for
 # gem developer/creators.
@@ -219,7 +212,7 @@ execute the Rake compilation task using the JRuby interpreter.
       end
       raise "JRUBY_HOME or JRUBY_PARENT_CLASSPATH are not set" unless jruby_cpath
       jruby_cpath += File::PATH_SEPARATOR + args.join(File::PATH_SEPARATOR) unless args.empty?
-      jruby_cpath ? "-cp \"#{jruby_cpath}\"" : ""
+      jruby_cpath
     end
 
   end
