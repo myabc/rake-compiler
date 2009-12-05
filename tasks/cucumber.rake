@@ -1,8 +1,7 @@
 begin
-  gem 'cucumber'
   require 'cucumber/rake/task'
-rescue Exception
-  nil
+rescue LoadError
+  warn "Cucumber gem is required, please install it. (gem install cucumber)"
 end
 
 if defined?(Cucumber)
@@ -19,6 +18,4 @@ if defined?(Cucumber)
   end
   desc 'Alias for cucumber:default'
   task :cucumber => 'cucumber:default'
-else
-  warn "Cucumber gem is required, please install it. (gem install cucumber)"
 end
