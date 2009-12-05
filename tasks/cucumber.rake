@@ -7,10 +7,12 @@ end
 if defined?(Cucumber)
   namespace :cucumber do
     Cucumber::Rake::Task.new('default', 'Run features testing C extension support') do |t|
-      t.cucumber_opts = "--tags ~@java --format pretty --no-source"
+      t.profile       = 'default'
+      t.cucumber_opts = '--format pretty --no-source'
     end
     Cucumber::Rake::Task.new('java', 'Run features testing Java extension support') do |t|
-      t.cucumber_opts = "--tags @java --format pretty --no-source"
+      t.profile       = 'java'
+      t.cucumber_opts = '--format pretty --no-source'
     end
 
     desc 'Run all features'
