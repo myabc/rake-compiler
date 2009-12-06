@@ -203,7 +203,7 @@ execute the Rake compilation task using the JRuby interpreter.
       end
       raise "JRUBY_HOME or JRUBY_PARENT_CLASSPATH are not set" unless jruby_cpath
       jruby_cpath += File::PATH_SEPARATOR + args.join(File::PATH_SEPARATOR) unless args.empty?
-      jruby_cpath
+      jruby_cpath ? "-cp \"#{jruby_cpath}\"" : ""
     end
 
   end
