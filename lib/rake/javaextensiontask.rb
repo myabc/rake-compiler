@@ -9,11 +9,7 @@ module Rake
   class JavaExtensionTask < BaseExtensionTask
 
     attr_accessor :classpath
-    attr_accessor :deprecation_warnings
-    attr_accessor :warnings
-    attr_accessor :encoding
-    attr_accessor :verbose
-    attr_accessor :lint
+    #attr_accessor :java_config_options
 
     def platform
       @platform ||= 'java'
@@ -25,14 +21,9 @@ module Rake
 
     def init(name = nil, gem_spec = nil)
       super
-      @source_pattern       = '**/*.java'
-      @classpath            = nil
-      @java_compiling       = nil
-      @deprecation_warnings = true
-      @warnings             = true
-      @encoding             = nil
-      @verbose              = false
-      @lint                 = []
+      @source_pattern = "**/*.java"
+      @classpath = nil
+      @java_compiling = nil
     end
 
     def define
@@ -77,7 +68,7 @@ execute the Rake compilation task using the JRuby interpreter.
       warn(not_jruby_compile_msg) unless defined?(JRUBY_VERSION)
 
       file "#{tmp_path}/#{binary(platf)}" => "#{tmp_path}/.build" do
-        jar("#{tmp_path}/#{binary(platf)}", FileList["#{tmp_path}/**/*.class"], :base_dir => tmp_path, :verbose => true)
+        sh "jar cf #{tmp_path}/#{binary(platf)} -C #{tmp_path} ."
       end
 
       file "#{tmp_path}/.build" => [tmp_path] + source_files do
@@ -85,13 +76,13 @@ execute the Rake compilation task using the JRuby interpreter.
 
         # Check if CC_JAVA_DEBUG env var was set to TRUE
         # TRUE means compile java classes with debug info
-        # debug_arg = if ENV['CC_JAVA_DEBUG'] && ENV['CC_JAVA_DEBUG'].upcase.eql?("TRUE")
-        #   '-g'
-        # else
-        #  ''
-        # end
+        debug_arg = if ENV['CC_JAVA_DEBUG'] && ENV['CC_JAVA_DEBUG'].upcase.eql?("TRUE")
+          '-g'
+        else
+          ''
+        end
 
-        javac(source_files, :destination => tmp_path, :class_path => classpath_arg, :verbose => true)
+        sh "javac #{java_extdirs_arg} -target 1.5 -source 1.5 -Xlint:unchecked #{debug_arg} #{classpath_arg} -d #{tmp_path} #{source_files.join(' ')}"
 
         # Checkpoint file
         touch "#{tmp_path}/.build"
